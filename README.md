@@ -1,13 +1,13 @@
 [![JS.ORG](https://img.shields.io/badge/js.org-flowchart-ffb400.svg?style=flat-square)](http://js.org)
 
-#Example
+# Example
 
 [example](https://github.com/adrai/flowchart.js/blob/master/example/index.html)
 
-#Requirements
+# Requirements
 You will need [Raphaël](http://raphaeljs.com/)
 
-#Usage
+# Usage
 
 On your page you need to include raphael like so:
 
@@ -82,18 +82,18 @@ and then
 </script>
 ```
 
-#Advice
+# Advice
 Symbols that should possibly not be used in the text: '=>' and '->' and ':>' and '|'
 
-#Contributors
+# Contributors
 
 via [GitHub](https://github.com/adrai/flowchart.js/graphs/contributors)
 
-#Thanks
+# Thanks
 
 Many thanks to [js-sequence-diagrams](http://bramp.github.io/js-sequence-diagrams/) which greatly inspired this project, and forms the basis for the syntax.
 
-#Licence
+# Licence
 
 Copyright (c) 2016 Adriano Raiano
 
