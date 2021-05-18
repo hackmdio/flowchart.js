@@ -1,5 +1,5 @@
-// flowchart.js, v1.6.1
-// Copyright (c)yyyy Adriano Raiano (adrai).
+// flowchart.js, v1.14.1
+// Copyright (c)2020 Adriano Raiano (adrai).
 // Distributed under MIT license
 // http://adrai.github.io/flowchart.js
 
@@ -8,7 +8,7 @@
         var a = factory("object" == typeof exports ? require("Raphael") : root.Raphael);
         for (var i in a) ("object" == typeof exports ? exports : root)[i] = a[i];
     }
-}(this, function(__WEBPACK_EXTERNAL_MODULE_15__) {
+}(this, function(__WEBPACK_EXTERNAL_MODULE_16__) {
     /******/
     return function(modules) {
         /******/
@@ -79,9 +79,9 @@
   \******************/
     /***/
     function(module, exports, __webpack_require__) {
-        __webpack_require__(/*! ./src/flowchart.shim */ 8);
+        __webpack_require__(/*! ./src/flowchart.shim */ 9);
         var parse = __webpack_require__(/*! ./src/flowchart.parse */ 4);
-        __webpack_require__(/*! ./src/jquery-plugin */ 14);
+        __webpack_require__(/*! ./src/jquery-plugin */ 15);
         var FlowChart = {
             parse: parse
         };
@@ -130,7 +130,8 @@
         function Symbol(chart, options, symbol) {
             this.chart = chart, this.group = this.chart.paper.set(), this.symbol = symbol, this.connectedTo = [], 
             this.symbolType = options.symbolType, this.flowstate = options.flowstate || "future", 
-            this.next_direction = options.next && options.direction_next ? options.direction_next : void 0, 
+            this.lineStyle = options.lineStyle || {}, this.key = options.key || "", this.leftLines = [], 
+            this.rightLines = [], this.topLines = [], this.bottomLines = [], this.next_direction = options.next && options.direction_next ? options.direction_next : void 0, 
             this.text = this.chart.paper.text(0, 0, options.text), //Raphael does not support the svg group tag so setting the text node id to the symbol node id plus t
             options.key && (this.text.node.id = options.key + "t"), this.text.node.setAttribute("class", this.getAttr("class") + "t"), 
             this.text.attr({
@@ -146,10 +147,15 @@
                 "font-family": fontF
             }), fontW && this.text.attr({
                 "font-weight": fontW
-            }), options.link && this.text.attr("href", options.link), options.target && this.text.attr("target", options.target);
+            }), options.link && this.text.attr("href", options.link), //ndrqu Add click function with event and options params
+            options.function && (this.text.attr({
+                cursor: "pointer"
+            }), this.text.node.addEventListener("click", function(evt) {
+                window[options.function](evt, options);
+            }, !1)), options.target && this.text.attr("target", options.target);
             var maxWidth = this.getAttr("maxWidth");
             if (maxWidth) {
-                for (var words = options.text.split(" "), tempText = "", i = 0, ii = words.length; ii > i; i++) {
+                for (var words = options.text.split(" "), tempText = "", i = 0, ii = words.length; i < ii; i++) {
                     var word = words[i];
                     this.text.attr("text", tempText + " " + word), tempText += this.text.getBBox().width > maxWidth ? "\n" + word : " " + word;
                 }
@@ -164,8 +170,13 @@
                     width: this.text.getBBox().width + 2 * tmpMargin,
                     height: this.text.getBBox().height + 2 * tmpMargin
                 }), symbol.node.setAttribute("class", this.getAttr("class")), options.link && symbol.attr("href", options.link), 
-                options.target && symbol.attr("target", options.target), options.key && (symbol.node.id = options.key), 
-                this.group.push(symbol), symbol.insertBefore(this.text), this.text.attr({
+                options.target && symbol.attr("target", options.target), //ndrqu Add click function with event and options params
+                options.function && (symbol.node.addEventListener("click", function(evt) {
+                    window[options.function](evt, options);
+                }, !1), symbol.attr({
+                    cursor: "pointer"
+                })), options.key && (symbol.node.id = options.key), this.group.push(symbol), symbol.insertBefore(this.text), 
+                this.text.attr({
                     y: symbol.getBBox().height / 2
                 }), this.initialize();
             }
@@ -224,24 +235,41 @@
             };
         }, Symbol.prototype.render = function() {
             if (this.next) {
-                var lineLength = this.getAttr("line-length");
+                var self = this, lineLength = this.getAttr("line-length");
                 if ("right" === this.next_direction) {
                     var rightPoint = this.getRight();
-                    if (!this.next.isPositioned) {
-                        this.next.setY(rightPoint.y - this.next.height / 2), this.next.shiftX(this.group.getBBox().x + this.width + lineLength);
-                        var self = this;
-                        !function shift() {
-                            for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; len > i; i++) {
-                                symb = self.chart.symbols[i];
-                                var diff = Math.abs(symb.getCenter().x - self.next.getCenter().x);
-                                if (symb.getCenter().y > self.next.getCenter().y && diff <= self.next.width / 2) {
-                                    hasSymbolUnder = !0;
-                                    break;
-                                }
+                    this.next.isPositioned || (this.next.setY(rightPoint.y - this.next.height / 2), 
+                    this.next.shiftX(this.group.getBBox().x + this.width + lineLength), function shift() {
+                        for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; i < len; i++) {
+                            symb = self.chart.symbols[i];
+                            var diff = Math.abs(symb.getCenter().x - self.next.getCenter().x);
+                            if (symb.getCenter().y > self.next.getCenter().y && diff <= self.next.width / 2) {
+                                hasSymbolUnder = !0;
+                                break;
                             }
-                            hasSymbolUnder && (self.next.setX(symb.getX() + symb.width + lineLength), shift());
-                        }(), this.next.isPositioned = !0, this.next.render();
-                    }
+                        }
+                        if (hasSymbolUnder) {
+                            if ("end" === self.next.symbolType) return;
+                            self.next.setX(symb.getX() + symb.width + lineLength), shift();
+                        }
+                    }(), this.next.isPositioned = !0, this.next.render());
+                } else if ("left" === this.next_direction) {
+                    var leftPoint = this.getLeft();
+                    this.next.isPositioned || (this.next.setY(leftPoint.y - this.next.height / 2), this.next.shiftX(-(this.group.getBBox().x + this.width + lineLength)), 
+                    function shift() {
+                        for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; i < len; i++) {
+                            symb = self.chart.symbols[i];
+                            var diff = Math.abs(symb.getCenter().x - self.next.getCenter().x);
+                            if (symb.getCenter().y > self.next.getCenter().y && diff <= self.next.width / 2) {
+                                hasSymbolUnder = !0;
+                                break;
+                            }
+                        }
+                        if (hasSymbolUnder) {
+                            if ("end" === self.next.symbolType) return;
+                            self.next.setX(symb.getX() + symb.width + lineLength), shift();
+                        }
+                    }(), this.next.isPositioned = !0, this.next.render());
                 } else {
                     var bottomPoint = this.getBottom();
                     this.next.isPositioned || (this.next.shiftY(this.getY() + this.height + lineLength), 
@@ -250,142 +278,216 @@
                 }
             }
         }, Symbol.prototype.renderLines = function() {
-            this.next && (this.next_direction ? this.drawLineTo(this.next, "", this.next_direction) : this.drawLineTo(this.next));
+            this.next && (this.next_direction ? this.drawLineTo(this.next, this.getAttr("arrow-text") || "", this.next_direction) : this.drawLineTo(this.next, this.getAttr("arrow-text") || ""));
         }, Symbol.prototype.drawLineTo = function(symbol, text, origin) {
             this.connectedTo.indexOf(symbol) < 0 && this.connectedTo.push(symbol);
-            var line, x = this.getCenter().x, y = this.getCenter().y, right = this.getRight(), bottom = this.getBottom(), left = this.getLeft(), symbolX = symbol.getCenter().x, symbolY = symbol.getCenter().y, symbolTop = symbol.getTop(), symbolRight = symbol.getRight(), symbolLeft = symbol.getLeft(), isOnSameColumn = x === symbolX, isOnSameLine = y === symbolY, isUnder = symbolY > y, isUpper = y > symbolY, isLeft = x > symbolX, isRight = symbolX > x, maxX = 0, lineLength = this.getAttr("line-length"), lineWith = this.getAttr("line-width");
-            if (origin && "bottom" !== origin || !isOnSameColumn || !isUnder) if (origin && "right" !== origin || !isOnSameLine || !isRight) if (origin && "left" !== origin || !isOnSameLine || !isLeft) if (origin && "right" !== origin || !isOnSameColumn || !isUpper) if (origin && "right" !== origin || !isOnSameColumn || !isUnder) if (origin && "bottom" !== origin || !isLeft) if (origin && "bottom" !== origin || !isRight) if (origin && "right" === origin && isLeft) line = drawLine(this.chart, right, [ {
+            var line, yOffset, x = this.getCenter().x, y = this.getCenter().y, right = this.getRight(), bottom = this.getBottom(), top = this.getTop(), left = this.getLeft(), symbolX = symbol.getCenter().x, symbolY = symbol.getCenter().y, symbolTop = symbol.getTop(), symbolRight = symbol.getRight(), symbolLeft = symbol.getLeft(), isOnSameColumn = x === symbolX, isOnSameLine = y === symbolY, isUnder = y < symbolY, isUpper = y > symbolY || this === symbol, isLeft = x > symbolX, isRight = x < symbolX, maxX = 0, lineLength = this.getAttr("line-length"), lineWith = this.getAttr("line-width");
+            if (origin && "bottom" !== origin || !isOnSameColumn || !isUnder) if (origin && "right" !== origin || !isOnSameLine || !isRight) if (origin && "left" !== origin || !isOnSameLine || !isLeft) if (origin && "right" !== origin || !isOnSameColumn || !isUpper) if (origin && "right" !== origin || !isOnSameColumn || !isUnder) if (origin && "bottom" !== origin || !isLeft) if (origin && "bottom" !== origin || !isRight || !isUnder) if (origin && "bottom" !== origin || !isRight) if (origin && "right" === origin && isLeft) yOffset = 10 * Math.max(symbol.topLines.length, this.rightLines.length), 
+            line = drawLine(this.chart, right, [ {
                 x: right.x + lineLength / 2,
                 y: right.y
             }, {
                 x: right.x + lineLength / 2,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
-            }, {
-                x: symbolTop.x,
-                y: symbolTop.y
-            } ], text), this.rightStart = !0, symbol.topEnd = !0, maxX = right.x + lineLength / 2; else if (origin && "right" === origin && isRight) line = drawLine(this.chart, right, [ {
-                x: symbolTop.x,
-                y: right.y
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
                 y: symbolTop.y
-            } ], text), this.rightStart = !0, symbol.topEnd = !0, maxX = right.x + lineLength / 2; else if (origin && "bottom" === origin && isOnSameColumn && isUpper) line = drawLine(this.chart, bottom, [ {
+            } ], text), this.rightLines.push(line), symbol.topLines.push(line), this.rightStart = !0, 
+            symbol.topEnd = !0, maxX = right.x + lineLength / 2; else if (origin && "right" === origin && isRight) yOffset = 10 * Math.max(symbol.topLines.length, this.rightLines.length), 
+            line = drawLine(this.chart, right, [ {
+                x: symbolTop.x,
+                y: right.y - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y - yOffset
+            } ], text), this.rightLines.push(line), symbol.topLines.push(line), this.rightStart = !0, 
+            symbol.topEnd = !0, maxX = right.x + lineLength / 2; else if (origin && "bottom" === origin && isOnSameColumn && isUpper) yOffset = 10 * Math.max(symbol.topLines.length, this.bottomLines.length), 
+            line = drawLine(this.chart, bottom, [ {
                 x: bottom.x,
-                y: bottom.y + lineLength / 2
+                y: bottom.y + lineLength / 2 - yOffset
             }, {
                 x: right.x + lineLength / 2,
-                y: bottom.y + lineLength / 2
+                y: bottom.y + lineLength / 2 - yOffset
             }, {
                 x: right.x + lineLength / 2,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
                 y: symbolTop.y
-            } ], text), this.bottomStart = !0, symbol.topEnd = !0, maxX = bottom.x + lineLength / 2; else if ("left" === origin && isOnSameColumn && isUpper) {
+            } ], text), this.bottomLines.push(line), symbol.topLines.push(line), this.bottomStart = !0, 
+            symbol.topEnd = !0, maxX = bottom.x + lineLength / 2; else if ("left" === origin && isOnSameColumn && isUpper) {
                 var diffX = left.x - lineLength / 2;
-                symbolLeft.x < left.x && (diffX = symbolLeft.x - lineLength / 2), line = drawLine(this.chart, left, [ {
+                symbolLeft.x < left.x && (diffX = symbolLeft.x - lineLength / 2), yOffset = 10 * Math.max(symbol.topLines.length, this.leftLines.length), 
+                line = drawLine(this.chart, left, [ {
                     x: diffX,
-                    y: left.y
+                    y: left.y - yOffset
                 }, {
                     x: diffX,
-                    y: symbolTop.y - lineLength / 2
+                    y: symbolTop.y - lineLength / 2 - yOffset
                 }, {
                     x: symbolTop.x,
-                    y: symbolTop.y - lineLength / 2
+                    y: symbolTop.y - lineLength / 2 - yOffset
                 }, {
                     x: symbolTop.x,
                     y: symbolTop.y
-                } ], text), this.leftStart = !0, symbol.topEnd = !0, maxX = left.x;
-            } else "left" === origin && (line = drawLine(this.chart, left, [ {
+                } ], text), this.leftLines.push(line), symbol.topLines.push(line), this.leftStart = !0, 
+                symbol.topEnd = !0, maxX = left.x;
+            } else "left" === origin ? (yOffset = 10 * Math.max(symbol.topLines.length, this.leftLines.length), 
+            line = drawLine(this.chart, left, [ {
                 x: symbolTop.x + (left.x - symbolTop.x) / 2,
                 y: left.y
             }, {
                 x: symbolTop.x + (left.x - symbolTop.x) / 2,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
-            }, {
-                x: symbolTop.x,
-                y: symbolTop.y
-            } ], text), this.leftStart = !0, symbol.topEnd = !0, maxX = left.x); else line = drawLine(this.chart, bottom, [ {
-                x: bottom.x,
-                y: bottom.y + lineLength / 2
-            }, {
-                x: bottom.x + (bottom.x - symbolTop.x) / 2,
-                y: bottom.y + lineLength / 2
-            }, {
-                x: bottom.x + (bottom.x - symbolTop.x) / 2,
-                y: symbolTop.y - lineLength / 2
-            }, {
-                x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
                 y: symbolTop.y
-            } ], text), this.bottomStart = !0, symbol.topEnd = !0, maxX = bottom.x + (bottom.x - symbolTop.x) / 2; else line = this.leftEnd && isUpper ? drawLine(this.chart, bottom, [ {
-                x: bottom.x,
-                y: bottom.y + lineLength / 2
-            }, {
-                x: bottom.x + (bottom.x - symbolTop.x) / 2,
-                y: bottom.y + lineLength / 2
-            }, {
-                x: bottom.x + (bottom.x - symbolTop.x) / 2,
-                y: symbolTop.y - lineLength / 2
+            } ], text), this.leftLines.push(line), symbol.topLines.push(line), this.leftStart = !0, 
+            symbol.topEnd = !0, maxX = left.x) : "top" === origin && (yOffset = 10 * Math.max(symbol.topLines.length, this.topLines.length), 
+            line = drawLine(this.chart, top, [ {
+                x: top.x,
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y
+            } ], text), this.topLines.push(line), symbol.topLines.push(line), this.topStart = !0, 
+            symbol.topEnd = !0, maxX = top.x); else yOffset = 10 * Math.max(symbol.topLines.length, this.bottomLines.length), 
+            line = drawLine(this.chart, bottom, [ {
+                x: bottom.x,
+                y: bottom.y + lineLength / 2 - yOffset
+            }, {
+                x: bottom.x + (bottom.x - symbolTop.x) / 2,
+                y: bottom.y + lineLength / 2 - yOffset
+            }, {
+                x: bottom.x + (bottom.x - symbolTop.x) / 2,
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y
+            } ], text), this.bottomLines.push(line), symbol.topLines.push(line), this.bottomStart = !0, 
+            symbol.topEnd = !0, maxX = bottom.x + (bottom.x - symbolTop.x) / 2; else yOffset = 10 * Math.max(symbol.topLines.length, this.bottomLines.length), 
+            line = drawLine(this.chart, bottom, [ {
+                x: bottom.x,
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y
+            } ], text), this.bottomLines.push(line), symbol.topLines.push(line), this.bottomStart = !0, 
+            symbol.topEnd = !0, maxX = bottom.x, symbolTop.x > maxX && (maxX = symbolTop.x); else yOffset = 10 * Math.max(symbol.topLines.length, this.bottomLines.length), 
+            line = this.leftEnd && isUpper ? drawLine(this.chart, bottom, [ {
+                x: bottom.x,
+                y: bottom.y + lineLength / 2 - yOffset
+            }, {
+                x: bottom.x + (bottom.x - symbolTop.x) / 2,
+                y: bottom.y + lineLength / 2 - yOffset
+            }, {
+                x: bottom.x + (bottom.x - symbolTop.x) / 2,
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
                 y: symbolTop.y
             } ], text) : drawLine(this.chart, bottom, [ {
                 x: bottom.x,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
-            }, {
-                x: symbolTop.x,
-                y: symbolTop.y
-            } ], text), this.bottomStart = !0, symbol.topEnd = !0, maxX = bottom.x + (bottom.x - symbolTop.x) / 2; else line = drawLine(this.chart, right, [ {
-                x: right.x + lineLength / 2,
-                y: right.y
-            }, {
-                x: right.x + lineLength / 2,
-                y: symbolTop.y - lineLength / 2
-            }, {
-                x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
                 y: symbolTop.y
-            } ], text), this.rightStart = !0, symbol.topEnd = !0, maxX = right.x + lineLength / 2; else line = drawLine(this.chart, right, [ {
+            } ], text), this.bottomLines.push(line), symbol.topLines.push(line), this.bottomStart = !0, 
+            symbol.topEnd = !0, maxX = bottom.x + (bottom.x - symbolTop.x) / 2; else yOffset = 10 * Math.max(symbol.topLines.length, this.rightLines.length), 
+            line = drawLine(this.chart, right, [ {
                 x: right.x + lineLength / 2,
-                y: right.y
+                y: right.y - yOffset
             }, {
                 x: right.x + lineLength / 2,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
-                y: symbolTop.y - lineLength / 2
+                y: symbolTop.y - lineLength / 2 - yOffset
             }, {
                 x: symbolTop.x,
                 y: symbolTop.y
-            } ], text), this.rightStart = !0, symbol.topEnd = !0, maxX = right.x + lineLength / 2; else line = drawLine(this.chart, left, symbolRight, text), 
-            this.leftStart = !0, symbol.rightEnd = !0, maxX = symbolRight.x; else line = drawLine(this.chart, right, symbolLeft, text), 
-            this.rightStart = !0, symbol.leftEnd = !0, maxX = symbolLeft.x; else line = drawLine(this.chart, bottom, symbolTop, text), 
-            this.bottomStart = !0, symbol.topEnd = !0, maxX = bottom.x;
-            if (line) {
-                for (var l = 0, llen = this.chart.lines.length; llen > l; l++) for (var len, otherLine = this.chart.lines[l], ePath = otherLine.attr("path"), lPath = line.attr("path"), iP = 0, lenP = ePath.length - 1; lenP > iP; iP++) {
+            } ], text), this.rightLines.push(line), symbol.topLines.push(line), this.rightStart = !0, 
+            symbol.topEnd = !0, maxX = right.x + lineLength / 2; else yOffset = 10 * Math.max(symbol.topLines.length, this.rightLines.length), 
+            line = drawLine(this.chart, right, [ {
+                x: right.x + lineLength / 2,
+                y: right.y - yOffset
+            }, {
+                x: right.x + lineLength / 2,
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y - lineLength / 2 - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y
+            } ], text), this.rightLines.push(line), symbol.topLines.push(line), this.rightStart = !0, 
+            symbol.topEnd = !0, maxX = right.x + lineLength / 2; else 0 === symbol.rightLines.length && 0 === this.leftLines.length ? line = drawLine(this.chart, left, symbolRight, text) : (yOffset = 10 * Math.max(symbol.rightLines.length, this.leftLines.length), 
+            line = drawLine(this.chart, right, [ {
+                x: right.x,
+                y: right.y - yOffset
+            }, {
+                x: right.x,
+                y: symbolRight.y - yOffset
+            }, {
+                x: symbolRight.x,
+                y: symbolRight.y - yOffset
+            }, {
+                x: symbolRight.x,
+                y: symbolRight.y
+            } ], text)), this.leftLines.push(line), symbol.rightLines.push(line), this.leftStart = !0, 
+            symbol.rightEnd = !0, maxX = symbolRight.x; else 0 === symbol.leftLines.length && 0 === this.rightLines.length ? line = drawLine(this.chart, right, symbolLeft, text) : (yOffset = 10 * Math.max(symbol.leftLines.length, this.rightLines.length), 
+            line = drawLine(this.chart, right, [ {
+                x: right.x,
+                y: right.y - yOffset
+            }, {
+                x: right.x,
+                y: symbolLeft.y - yOffset
+            }, {
+                x: symbolLeft.x,
+                y: symbolLeft.y - yOffset
+            }, {
+                x: symbolLeft.x,
+                y: symbolLeft.y
+            } ], text)), this.rightLines.push(line), symbol.leftLines.push(line), this.rightStart = !0, 
+            symbol.leftEnd = !0, maxX = symbolLeft.x; else 0 === symbol.topLines.length && 0 === this.bottomLines.length ? line = drawLine(this.chart, bottom, symbolTop, text) : (yOffset = 10 * Math.max(symbol.topLines.length, this.bottomLines.length), 
+            line = drawLine(this.chart, bottom, [ {
+                x: symbolTop.x,
+                y: symbolTop.y - yOffset
+            }, {
+                x: symbolTop.x,
+                y: symbolTop.y
+            } ], text)), this.bottomLines.push(line), symbol.topLines.push(line), this.bottomStart = !0, 
+            symbol.topEnd = !0, maxX = bottom.x;
+            if (//update line style
+            this.lineStyle[symbol.key] && line && line.attr(this.lineStyle[symbol.key]), line) {
+                for (var l = 0, llen = this.chart.lines.length; l < llen; l++) for (var otherLine = this.chart.lines[l], ePath = otherLine.attr("path"), lPath = line.attr("path"), iP = 0, lenP = ePath.length - 1; iP < lenP; iP++) {
                     var newPath = [];
                     newPath.push([ "M", ePath[iP][1], ePath[iP][2] ]), newPath.push([ "L", ePath[iP + 1][1], ePath[iP + 1][2] ]);
-                    for (var line1_from_x = newPath[0][1], line1_from_y = newPath[0][2], line1_to_x = newPath[1][1], line1_to_y = newPath[1][2], lP = 0, lenlP = lPath.length - 1; lenlP > lP; lP++) {
+                    for (var line1_from_x = newPath[0][1], line1_from_y = newPath[0][2], line1_to_x = newPath[1][1], line1_to_y = newPath[1][2], lP = 0, lenlP = lPath.length - 1; lP < lenlP; lP++) {
                         var newLinePath = [];
                         newLinePath.push([ "M", lPath[lP][1], lPath[lP][2] ]), newLinePath.push([ "L", lPath[lP + 1][1], lPath[lP + 1][2] ]);
                         var line2_from_x = newLinePath[0][1], line2_from_y = newLinePath[0][2], line2_to_x = newLinePath[1][1], line2_to_y = newLinePath[1][2], res = checkLineIntersection(line1_from_x, line1_from_y, line1_to_x, line1_to_y, line2_from_x, line2_from_y, line2_to_x, line2_to_y);
@@ -399,11 +501,11 @@
                             lPath.splice(lP + 1, 0, newSegment), newSegment = [ "C", line2_from_x, res.y + 2 * lineWith, line2_from_x + 4 * lineWith, res.y, line2_from_x, res.y - 2 * lineWith ], 
                             lPath.splice(lP + 2, 0, newSegment), line.attr("path", lPath)) : (newSegment = [ "L", line2_from_x, res.y - 2 * lineWith ], 
                             lPath.splice(lP + 1, 0, newSegment), newSegment = [ "C", line2_from_x, res.y - 2 * lineWith, line2_from_x + 4 * lineWith, res.y, line2_from_x, res.y + 2 * lineWith ], 
-                            lPath.splice(lP + 2, 0, newSegment), line.attr("path", lPath)), lP += 2, len += 2;
+                            lPath.splice(lP + 2, 0, newSegment), line.attr("path", lPath)), lP += 2;
                         }
                     }
                 }
-                this.chart.lines.push(line);
+                this.chart.lines.push(line), (void 0 === this.chart.minXFromSymbols || this.chart.minXFromSymbols > left.x) && (this.chart.minXFromSymbols = left.x);
             }
             (!this.chart.maxXFromLine || this.chart.maxXFromLine && maxX > this.chart.maxXFromLine) && (this.chart.maxXFromLine = maxX);
         }, module.exports = Symbol;
@@ -415,9 +517,9 @@
     function(module, exports) {
         function drawPath(chart, location, points) {
             var i, len, path = "M{0},{1}";
-            for (i = 2, len = 2 * points.length + 2; len > i; i += 2) path += " L{" + i + "},{" + (i + 1) + "}";
+            for (i = 2, len = 2 * points.length + 2; i < len; i += 2) path += " L{" + i + "},{" + (i + 1) + "}";
             var pathValues = [ location.x, location.y ];
-            for (i = 0, len = points.length; len > i; i++) pathValues.push(points[i].x), pathValues.push(points[i].y);
+            for (i = 0, len = points.length; i < len; i++) pathValues.push(points[i].x), pathValues.push(points[i].y);
             var symbol = chart.paper.path(path, pathValues);
             symbol.attr("stroke", chart.options["element-color"]), symbol.attr("stroke-width", chart.options["line-width"]);
             var font = chart.options.font, fontF = chart.options["font-family"], fontW = chart.options["font-weight"];
@@ -433,9 +535,9 @@
             var i, len;
             "[object Array]" !== Object.prototype.toString.call(to) && (to = [ to ]);
             var path = "M{0},{1}";
-            for (i = 2, len = 2 * to.length + 2; len > i; i += 2) path += " L{" + i + "},{" + (i + 1) + "}";
+            for (i = 2, len = 2 * to.length + 2; i < len; i += 2) path += " L{" + i + "},{" + (i + 1) + "}";
             var pathValues = [ from.x, from.y ];
-            for (i = 0, len = to.length; len > i; i++) pathValues.push(to[i].x), pathValues.push(to[i].y);
+            for (i = 0, len = to.length; i < len; i++) pathValues.push(to[i].x), pathValues.push(to[i].y);
             var line = chart.paper.path(path, pathValues);
             line.attr({
                 stroke: chart.options["line-color"],
@@ -450,16 +552,17 @@
             }), fontW && line.attr({
                 "font-weight": fontW
             }), text) {
-                var centerText = !1, textPath = chart.paper.text(0, 0, text), isHorizontal = !1, firstTo = to[0];
+                var centerText = !1, textPath = chart.paper.text(0, 0, text), textAnchor = "start", isHorizontal = !1, firstTo = to[0];
                 from.y === firstTo.y && (isHorizontal = !0);
                 var x = 0, y = 0;
                 centerText ? (x = from.x > firstTo.x ? from.x - (from.x - firstTo.x) / 2 : firstTo.x - (firstTo.x - from.x) / 2, 
                 y = from.y > firstTo.y ? from.y - (from.y - firstTo.y) / 2 : firstTo.y - (firstTo.y - from.y) / 2, 
                 isHorizontal ? (x -= textPath.getBBox().width / 2, y -= chart.options["text-margin"]) : (x += chart.options["text-margin"], 
-                y -= textPath.getBBox().height / 2)) : (x = from.x, y = from.y, isHorizontal ? (x += chart.options["text-margin"] / 2, 
-                y -= chart.options["text-margin"]) : (x += chart.options["text-margin"] / 2, y += chart.options["text-margin"])), 
+                y -= textPath.getBBox().height / 2)) : (x = from.x, y = from.y, isHorizontal ? (from.x > firstTo.x ? (x -= chart.options["text-margin"] / 2, 
+                textAnchor = "end") : x += chart.options["text-margin"] / 2, y -= chart.options["text-margin"]) : (x += chart.options["text-margin"] / 2, 
+                y += chart.options["text-margin"], from.y > firstTo.y && (y -= 2 * chart.options["text-margin"]))), 
                 textPath.attr({
-                    "text-anchor": "start",
+                    "text-anchor": textAnchor,
                     "font-size": chart.options["font-size"],
                     fill: chart.options["font-color"],
                     x: x,
@@ -494,8 +597,8 @@
             0 === denominator ? result : (a = line1StartY - line2StartY, b = line1StartX - line2StartX, 
             numerator1 = (line2EndX - line2StartX) * a - (line2EndY - line2StartY) * b, numerator2 = (line1EndX - line1StartX) * a - (line1EndY - line1StartY) * b, 
             a = numerator1 / denominator, b = numerator2 / denominator, result.x = line1StartX + a * (line1EndX - line1StartX), 
-            result.y = line1StartY + a * (line1EndY - line1StartY), a > 0 && 1 > a && (result.onLine1 = !0), 
-            b > 0 && 1 > b && (result.onLine2 = !0), result);
+            result.y = line1StartY + a * (line1EndY - line1StartY), a > 0 && a < 1 && (result.onLine1 = !0), 
+            b > 0 && b < 1 && (result.onLine2 = !0), result);
         }
         module.exports = {
             drawPath: drawPath,
@@ -509,6 +612,14 @@
     /***/
     function(module, exports, __webpack_require__) {
         function parse(input) {
+            function getStyle(s) {
+                var startIndex = s.indexOf("(") + 1, endIndex = s.indexOf(")");
+                return startIndex >= 0 && endIndex >= 0 ? s.substring(startIndex, endIndex) : "{}";
+            }
+            function getSymbValue(s) {
+                var startIndex = s.indexOf("(") + 1, endIndex = s.indexOf(")");
+                return startIndex >= 0 && endIndex >= 0 ? s.substring(startIndex, endIndex) : "";
+            }
             function getSymbol(s) {
                 var startIndex = s.indexOf("(") + 1, endIndex = s.indexOf(")");
                 return startIndex >= 0 && endIndex >= 0 ? chart.symbols[s.substring(0, startIndex - 1)] : chart.symbols[s];
@@ -518,6 +629,12 @@
                 return startIndex >= 0 && endIndex >= 0 && (next = flowSymb.substring(startIndex, endIndex), 
                 next.indexOf(",") < 0 && "yes" !== next && "no" !== next && (next = "next, " + next)), 
                 next;
+            }
+            function getAnnotation(s) {
+                var startIndex = s.indexOf("(") + 1, endIndex = s.indexOf(")"), tmp = s.substring(startIndex, endIndex);
+                tmp.indexOf(",") > 0 && (tmp = tmp.substring(0, tmp.indexOf(",")));
+                var tmp_split = tmp.split("@");
+                if (tmp_split.length > 1) return startIndex >= 0 && endIndex >= 0 ? tmp_split[1] : "";
             }
             input = input || "", input = input.trim();
             for (var chart = {
@@ -551,6 +668,10 @@
                             dispSymbols[s.key] = new Condition(diagram, s);
                             break;
 
+                          case "parallel":
+                            dispSymbols[s.key] = new Parallel(diagram, s);
+                            break;
+
                           default:
                             return new Error("Wrong symbol type!");
                         }
@@ -564,39 +685,55 @@
                     !function constructChart(s, prevDisp, prev) {
                         var dispSymb = getDisplaySymbol(s);
                         return self.start === s ? diagram.startWith(dispSymb) : prevDisp && prev && !prevDisp.pathOk && (prevDisp instanceof Condition ? (prev.yes === s && prevDisp.yes(dispSymb), 
-                        prev.no === s && prevDisp.no(dispSymb)) : prevDisp.then(dispSymb)), dispSymb.pathOk ? dispSymb : (dispSymb instanceof Condition ? (s.yes && constructChart(s.yes, dispSymb, s), 
-                        s.no && constructChart(s.no, dispSymb, s)) : s.next && constructChart(s.next, dispSymb, s), 
+                        prev.no === s && prevDisp.no(dispSymb)) : prevDisp instanceof Parallel ? (prev.path1 === s && prevDisp.path1(dispSymb), 
+                        prev.path2 === s && prevDisp.path2(dispSymb), prev.path3 === s && prevDisp.path3(dispSymb)) : prevDisp.then(dispSymb)), 
+                        dispSymb.pathOk ? dispSymb : (dispSymb instanceof Condition ? (s.yes && constructChart(s.yes, dispSymb, s), 
+                        s.no && constructChart(s.no, dispSymb, s)) : dispSymb instanceof Parallel ? (s.path1 && constructChart(s.path1, dispSymb, s), 
+                        s.path2 && constructChart(s.path2, dispSymb, s), s.path3 && constructChart(s.path3, dispSymb, s)) : s.next && constructChart(s.next, dispSymb, s), 
                         dispSymb);
                     }(this.start), diagram.render();
                 },
                 clean: function() {
                     this.diagram.clean();
+                },
+                options: function() {
+                    return this.diagram.options;
                 }
-            }, lines = [], prevBreak = 0, i0 = 1, i0len = input.length; i0len > i0; i0++) if ("\n" === input[i0] && "\\" !== input[i0 - 1]) {
+            }, lines = [], prevBreak = 0, i0 = 1, i0len = input.length; i0 < i0len; i0++) if ("\n" === input[i0] && "\\" !== input[i0 - 1]) {
                 var line0 = input.substring(prevBreak, i0);
                 prevBreak = i0 + 1, lines.push(line0.replace(/\\\n/g, "\n"));
             }
             prevBreak < input.length && lines.push(input.substr(prevBreak));
-            for (var l = 1, len = lines.length; len > l; ) {
+            for (var l = 1, len = lines.length; l < len; ) {
                 var currentLine = lines[l];
-                currentLine.indexOf("->") < 0 && currentLine.indexOf("=>") < 0 ? (lines[l - 1] += "\n" + currentLine, 
+                currentLine.indexOf("->") < 0 && currentLine.indexOf("=>") < 0 && currentLine.indexOf("@>") < 0 ? (lines[l - 1] += "\n" + currentLine, 
                 lines.splice(l, 1), len--) : l++;
             }
             for (;lines.length > 0; ) {
-                var line = lines.splice(0, 1)[0];
+                var line = lines.splice(0, 1)[0].trim();
                 if (line.indexOf("=>") >= 0) {
                     // definition
-                    var sub, parts = line.split("=>"), symbol = {
-                        key: parts[0],
+                    var parts = line.split("=>"), symbol = {
+                        key: parts[0].replace(/\(.*\)/, ""),
                         symbolType: parts[1],
                         text: null,
                         link: null,
                         target: null,
-                        flowstate: null
-                    };
+                        flowstate: null,
+                        function: null,
+                        lineStyle: {},
+                        params: {}
+                    }, params = parts[0].match(/\((.*)\)/);
+                    if (params && params.length > 1) for (var entries = params[1].split(","), i = 0; i < entries.length; i++) {
+                        var entry = entries[i].split("=");
+                        2 == entry.length && (symbol.params[entry[0]] = entry[1]);
+                    }
+                    var sub;
                     /* adding support for links */
                     if (symbol.symbolType.indexOf(": ") >= 0 && (sub = symbol.symbolType.split(": "), 
-                    symbol.symbolType = sub.shift(), symbol.text = sub.join(": ")), symbol.text && symbol.text.indexOf(":>") >= 0 ? (sub = symbol.text.split(":>"), 
+                    symbol.symbolType = sub.shift(), symbol.text = sub.join(": ")), symbol.text && symbol.text.indexOf(":$") >= 0 ? (sub = symbol.text.split(":$"), 
+                    symbol.text = sub.shift(), symbol.function = sub.join(":$")) : symbol.symbolType.indexOf(":$") >= 0 ? (sub = symbol.symbolType.split(":$"), 
+                    symbol.symbolType = sub.shift(), symbol.function = sub.join(":$")) : symbol.text && symbol.text.indexOf(":>") >= 0 ? (sub = symbol.text.split(":>"), 
                     symbol.text = sub.shift(), symbol.link = sub.join(":>")) : symbol.symbolType.indexOf(":>") >= 0 && (sub = symbol.symbolType.split(":>"), 
                     symbol.symbolType = sub.shift(), symbol.link = sub.join(":>")), symbol.symbolType.indexOf("\n") >= 0 && (symbol.symbolType = symbol.symbolType.split("\n")[0]), 
                     symbol.link) {
@@ -612,22 +749,33 @@
                     }
                     /* end of flowstate support */
                     chart.symbols[symbol.key] = symbol;
-                } else if (line.indexOf("->") >= 0) for (var flowSymbols = line.split("->"), i = 0, lenS = flowSymbols.length; lenS > i; i++) {
-                    var flowSymb = flowSymbols[i], realSymb = getSymbol(flowSymb), next = getNextPath(flowSymb), direction = null;
-                    if (next.indexOf(",") >= 0) {
-                        var condOpt = next.split(",");
-                        next = condOpt[0], direction = condOpt[1].trim();
+                } else if (line.indexOf("->") >= 0) {
+                    var ann = getAnnotation(line);
+                    ann && (line = line.replace("@" + ann, ""));
+                    for (var flowSymbols = line.split("->"), iS = 0, lenS = flowSymbols.length; iS < lenS; iS++) {
+                        var flowSymb = flowSymbols[iS], symbVal = getSymbValue(flowSymb);
+                        "true" !== symbVal && "false" !== symbVal || (// map true or false to yes or no respectively
+                        flowSymb = flowSymb.replace("true", "yes"), flowSymb = flowSymb.replace("false", "no"));
+                        var next = getNextPath(flowSymb), realSymb = getSymbol(flowSymb), direction = null;
+                        if (next.indexOf(",") >= 0) {
+                            var condOpt = next.split(",");
+                            next = condOpt[0], direction = condOpt[1].trim();
+                        }
+                        if (ann && ("yes" == next || "true" == next ? realSymb.yes_annotation = ann : realSymb.no_annotation = ann, 
+                        ann = null), chart.start || (chart.start = realSymb), iS + 1 < lenS) {
+                            var nextSymb = flowSymbols[iS + 1];
+                            realSymb[next] = getSymbol(nextSymb), realSymb["direction_" + next] = direction, 
+                            direction = null;
+                        }
                     }
-                    if (chart.start || (chart.start = realSymb), lenS > i + 1) {
-                        var nextSymb = flowSymbols[i + 1];
-                        realSymb[next] = getSymbol(nextSymb), realSymb["direction_" + next] = direction, 
-                        direction = null;
-                    }
+                } else if (line.indexOf("@>") >= 0) for (var lineStyleSymbols = line.split("@>"), iSS = 0, lenSS = lineStyleSymbols.length; iSS < lenSS; iSS++) if (iSS + 1 !== lenSS) {
+                    var curSymb = getSymbol(lineStyleSymbols[iSS]), nextSymbol = getSymbol(lineStyleSymbols[iSS + 1]);
+                    curSymb.lineStyle[nextSymbol.key] = JSON.parse(getStyle(lineStyleSymbols[iSS + 1]));
                 }
             }
             return chart;
         }
-        var FlowChart = __webpack_require__(/*! ./flowchart.chart */ 6), Start = __webpack_require__(/*! ./flowchart.symbol.start */ 12), End = __webpack_require__(/*! ./flowchart.symbol.end */ 9), Operation = __webpack_require__(/*! ./flowchart.symbol.operation */ 11), InputOutput = __webpack_require__(/*! ./flowchart.symbol.inputoutput */ 10), Subroutine = __webpack_require__(/*! ./flowchart.symbol.subroutine */ 13), Condition = __webpack_require__(/*! ./flowchart.symbol.condition */ 5);
+        var FlowChart = __webpack_require__(/*! ./flowchart.chart */ 7), Start = __webpack_require__(/*! ./flowchart.symbol.start */ 13), End = __webpack_require__(/*! ./flowchart.symbol.end */ 10), Operation = __webpack_require__(/*! ./flowchart.symbol.operation */ 12), InputOutput = __webpack_require__(/*! ./flowchart.symbol.inputoutput */ 11), Subroutine = __webpack_require__(/*! ./flowchart.symbol.subroutine */ 14), Condition = __webpack_require__(/*! ./flowchart.symbol.condition */ 5), Parallel = __webpack_require__(/*! ./flowchart.symbol.parallel */ 6);
         module.exports = parse;
     }, /* 5 */
     /*!*******************************************!*\
@@ -636,12 +784,12 @@
     /***/
     function(module, exports, __webpack_require__) {
         function Condition(chart, options) {
-            options = options || {}, Symbol.call(this, chart, options), this.textMargin = this.getAttr("text-margin"), 
-            this.yes_direction = "bottom", this.no_direction = "right", options.yes && options.direction_yes && options.no && !options.direction_no ? "right" === options.direction_yes ? (this.no_direction = "bottom", 
-            this.yes_direction = "right") : (this.no_direction = "right", this.yes_direction = "bottom") : options.yes && !options.direction_yes && options.no && options.direction_no ? "right" === options.direction_no ? (this.yes_direction = "bottom", 
-            this.no_direction = "right") : (this.yes_direction = "right", this.no_direction = "bottom") : (this.yes_direction = "bottom", 
-            this.no_direction = "right"), this.yes_direction = this.yes_direction || "bottom", 
-            this.no_direction = this.no_direction || "right", this.text.attr({
+            options = options || {}, Symbol.call(this, chart, options), this.yes_annotation = options.yes_annotation, 
+            this.no_annotation = options.no_annotation, this.textMargin = this.getAttr("text-margin"), 
+            this.yes_direction = options.direction_yes, this.no_direction = options.direction_no, 
+            this.params = options.params, this.no_direction || "right" !== this.yes_direction ? this.yes_direction || "bottom" !== this.no_direction || (this.yes_direction = "right") : this.no_direction = "bottom", 
+            this.yes_direction = this.yes_direction || "bottom", this.no_direction = this.no_direction || "right", 
+            this.text.attr({
                 x: 2 * this.textMargin
             });
             var width = this.text.getBBox().width + 3 * this.textMargin;
@@ -698,24 +846,135 @@
                     this.right_symbol.setY(rightPoint.y - this.right_symbol.height / 2), this.right_symbol.shiftX(this.group.getBBox().x + this.width + lineLength);
                     var self = this;
                     !function shift() {
-                        for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; len > i; i++) {
-                            symb = self.chart.symbols[i];
+                        for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; i < len; i++) if (symb = self.chart.symbols[i], 
+                        !self.params["align-next"] || "no" !== self.params["align-next"]) {
                             var diff = Math.abs(symb.getCenter().x - self.right_symbol.getCenter().x);
                             if (symb.getCenter().y > self.right_symbol.getCenter().y && diff <= self.right_symbol.width / 2) {
                                 hasSymbolUnder = !0;
                                 break;
                             }
                         }
-                        hasSymbolUnder && (self.right_symbol.setX(symb.getX() + symb.width + lineLength), 
-                        shift());
+                        if (hasSymbolUnder) {
+                            if ("end" === self.right_symbol.symbolType) return;
+                            self.right_symbol.setX(symb.getX() + symb.width + lineLength), shift();
+                        }
                     }(), this.right_symbol.isPositioned = !0, this.right_symbol.render();
                 }
             }
+            if (this.left_symbol) {
+                var leftPoint = this.getLeft();
+                if (!this.left_symbol.isPositioned) {
+                    this.left_symbol.setY(leftPoint.y - this.left_symbol.height / 2), this.left_symbol.shiftX(-(this.group.getBBox().x + this.width + lineLength));
+                    var self = this;
+                    !function shift() {
+                        for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; i < len; i++) if (symb = self.chart.symbols[i], 
+                        !self.params["align-next"] || "no" !== self.params["align-next"]) {
+                            var diff = Math.abs(symb.getCenter().x - self.left_symbol.getCenter().x);
+                            if (symb.getCenter().y > self.left_symbol.getCenter().y && diff <= self.left_symbol.width / 2) {
+                                hasSymbolUnder = !0;
+                                break;
+                            }
+                        }
+                        if (hasSymbolUnder) {
+                            if ("end" === self.left_symbol.symbolType) return;
+                            self.left_symbol.setX(symb.getX() + symb.width + lineLength), shift();
+                        }
+                    }(), this.left_symbol.isPositioned = !0, this.left_symbol.render();
+                }
+            }
         }, Condition.prototype.renderLines = function() {
-            this.yes_symbol && this.drawLineTo(this.yes_symbol, this.getAttr("yes-text"), this.yes_direction), 
-            this.no_symbol && this.drawLineTo(this.no_symbol, this.getAttr("no-text"), this.no_direction);
+            this.yes_symbol && this.drawLineTo(this.yes_symbol, this.yes_annotation ? this.yes_annotation : this.getAttr("yes-text"), this.yes_direction), 
+            this.no_symbol && this.drawLineTo(this.no_symbol, this.no_annotation ? this.no_annotation : this.getAttr("no-text"), this.no_direction);
         }, module.exports = Condition;
     }, /* 6 */
+    /*!******************************************!*\
+  !*** ./src/flowchart.symbol.parallel.js ***!
+  \******************************************/
+    /***/
+    function(module, exports, __webpack_require__) {
+        function Parallel(chart, options) {
+            var symbol = chart.paper.rect(0, 0, 0, 0);
+            options = options || {}, Symbol.call(this, chart, options, symbol), this.textMargin = this.getAttr("text-margin"), 
+            this.path1_direction = "bottom", this.path2_direction = "right", this.path3_direction = "top", 
+            this.params = options.params, "path1" === options.direction_next && !options[options.direction_next] && options.next && (options[options.direction_next] = options.next), 
+            "path2" === options.direction_next && !options[options.direction_next] && options.next && (options[options.direction_next] = options.next), 
+            "path3" === options.direction_next && !options[options.direction_next] && options.next && (options[options.direction_next] = options.next), 
+            options.path1 && options.direction_path1 && options.path2 && !options.direction_path2 && options.path3 && !options.direction_path3 ? "right" === options.direction_path1 ? (this.path2_direction = "bottom", 
+            this.path1_direction = "right", this.path3_direction = "top") : "top" === options.direction_path1 ? (this.path2_direction = "right", 
+            this.path1_direction = "top", this.path3_direction = "bottom") : "left" === options.direction_path1 ? (this.path2_direction = "right", 
+            this.path1_direction = "left", this.path3_direction = "bottom") : (this.path2_direction = "right", 
+            this.path1_direction = "bottom", this.path3_direction = "top") : options.path1 && !options.direction_path1 && options.path2 && options.direction_path2 && options.path3 && !options.direction_path3 ? "right" === options.direction_path2 ? (this.path1_direction = "bottom", 
+            this.path2_direction = "right", this.path3_direction = "top") : "left" === options.direction_path2 ? (this.path1_direction = "bottom", 
+            this.path2_direction = "left", this.path3_direction = "right") : (this.path1_direction = "right", 
+            this.path2_direction = "bottom", this.path3_direction = "top") : options.path1 && !options.direction_path1 && options.path2 && !options.direction_path2 && options.path3 && options.direction_path3 ? "right" === options.direction_path2 ? (this.path1_direction = "bottom", 
+            this.path2_direction = "top", this.path3_direction = "right") : "left" === options.direction_path2 ? (this.path1_direction = "bottom", 
+            this.path2_direction = "right", this.path3_direction = "left") : (this.path1_direction = "right", 
+            this.path2_direction = "bottom", this.path3_direction = "top") : (this.path1_direction = options.direction_path1, 
+            this.path2_direction = options.direction_path2, this.path3_direction = options.direction_path3), 
+            this.path1_direction = this.path1_direction || "bottom", this.path2_direction = this.path2_direction || "right", 
+            this.path3_direction = this.path3_direction || "top", this.initialize();
+        }
+        var Symbol = __webpack_require__(/*! ./flowchart.symbol */ 2), inherits = __webpack_require__(/*! ./flowchart.helpers */ 1).inherits;
+        inherits(Parallel, Symbol), Parallel.prototype.render = function() {
+            this.path1_direction && (this[this.path1_direction + "_symbol"] = this.path1_symbol), 
+            this.path2_direction && (this[this.path2_direction + "_symbol"] = this.path2_symbol), 
+            this.path3_direction && (this[this.path3_direction + "_symbol"] = this.path3_symbol);
+            var lineLength = this.getAttr("line-length");
+            if (this.bottom_symbol) {
+                var bottomPoint = this.getBottom();
+                this.bottom_symbol.isPositioned || (this.bottom_symbol.shiftY(this.getY() + this.height + lineLength), 
+                this.bottom_symbol.setX(bottomPoint.x - this.bottom_symbol.width / 2), this.bottom_symbol.isPositioned = !0, 
+                this.bottom_symbol.render());
+            }
+            if (this.top_symbol) {
+                var topPoint = this.getTop();
+                this.top_symbol.isPositioned || (this.top_symbol.shiftY(this.getY() - this.top_symbol.height - lineLength), 
+                this.top_symbol.setX(topPoint.x + this.top_symbol.width), this.top_symbol.isPositioned = !0, 
+                this.top_symbol.render());
+            }
+            var self = this;
+            if (this.left_symbol) {
+                var leftPoint = this.getLeft();
+                this.left_symbol.isPositioned || (this.left_symbol.setY(leftPoint.y - this.left_symbol.height / 2), 
+                this.left_symbol.shiftX(-(this.group.getBBox().x + this.width + lineLength)), function shift() {
+                    for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; i < len; i++) if (symb = self.chart.symbols[i], 
+                    !self.params["align-next"] || "no" !== self.params["align-next"]) {
+                        var diff = Math.abs(symb.getCenter().x - self.left_symbol.getCenter().x);
+                        if (symb.getCenter().y > self.left_symbol.getCenter().y && diff <= self.left_symbol.width / 2) {
+                            hasSymbolUnder = !0;
+                            break;
+                        }
+                    }
+                    if (hasSymbolUnder) {
+                        if ("end" === self.left_symbol.symbolType) return;
+                        self.left_symbol.setX(symb.getX() + symb.width + lineLength), shift();
+                    }
+                }(), this.left_symbol.isPositioned = !0, this.left_symbol.render());
+            }
+            if (this.right_symbol) {
+                var rightPoint = this.getRight();
+                this.right_symbol.isPositioned || (this.right_symbol.setY(rightPoint.y - this.right_symbol.height / 2), 
+                this.right_symbol.shiftX(this.group.getBBox().x + this.width + lineLength), function shift() {
+                    for (var symb, hasSymbolUnder = !1, i = 0, len = self.chart.symbols.length; i < len; i++) if (symb = self.chart.symbols[i], 
+                    !self.params["align-next"] || "no" !== self.params["align-next"]) {
+                        var diff = Math.abs(symb.getCenter().x - self.right_symbol.getCenter().x);
+                        if (symb.getCenter().y > self.right_symbol.getCenter().y && diff <= self.right_symbol.width / 2) {
+                            hasSymbolUnder = !0;
+                            break;
+                        }
+                    }
+                    if (hasSymbolUnder) {
+                        if ("end" === self.right_symbol.symbolType) return;
+                        self.right_symbol.setX(symb.getX() + symb.width + lineLength), shift();
+                    }
+                }(), this.right_symbol.isPositioned = !0, this.right_symbol.render());
+            }
+        }, Parallel.prototype.renderLines = function() {
+            this.path1_symbol && this.drawLineTo(this.path1_symbol, "", this.path1_direction), 
+            this.path2_symbol && this.drawLineTo(this.path2_symbol, "", this.path2_direction), 
+            this.path3_symbol && this.drawLineTo(this.path3_symbol, "", this.path3_direction);
+        }, module.exports = Parallel;
+    }, /* 7 */
     /*!********************************!*\
   !*** ./src/flowchart.chart.js ***!
   \********************************/
@@ -725,7 +984,7 @@
             options = options || {}, this.paper = new Raphael(container), this.options = defaults(options, defaultOptions), 
             this.symbols = [], this.lines = [], this.start = null;
         }
-        var Raphael = __webpack_require__(/*! raphael */ 15), defaults = __webpack_require__(/*! ./flowchart.helpers */ 1).defaults, defaultOptions = __webpack_require__(/*! ./flowchart.defaults */ 7), Condition = __webpack_require__(/*! ./flowchart.symbol.condition */ 5);
+        var Raphael = __webpack_require__(/*! raphael */ 16), defaults = __webpack_require__(/*! ./flowchart.helpers */ 1).defaults, defaultOptions = __webpack_require__(/*! ./flowchart.defaults */ 8), Condition = __webpack_require__(/*! ./flowchart.symbol.condition */ 5), Parallel = __webpack_require__(/*! ./flowchart.symbol.parallel */ 6);
         FlowChart.prototype.handle = function(symbol) {
             this.symbols.indexOf(symbol) <= -1 && this.symbols.push(symbol);
             var flowChart = this;
@@ -735,43 +994,57 @@
             }, symbol.no = function(nextSymbol) {
                 return symbol.no_symbol = nextSymbol, symbol.yes_symbol && (symbol.pathOk = !0), 
                 flowChart.handle(nextSymbol);
+            }) : symbol instanceof Parallel ? (symbol.path1 = function(nextSymbol) {
+                return symbol.path1_symbol = nextSymbol, symbol.path2_symbol && (symbol.pathOk = !0), 
+                flowChart.handle(nextSymbol);
+            }, symbol.path2 = function(nextSymbol) {
+                return symbol.path2_symbol = nextSymbol, symbol.path3_symbol && (symbol.pathOk = !0), 
+                flowChart.handle(nextSymbol);
+            }, symbol.path3 = function(nextSymbol) {
+                return symbol.path3_symbol = nextSymbol, symbol.path1_symbol && (symbol.pathOk = !0), 
+                flowChart.handle(nextSymbol);
             }) : symbol.then = function(nextSymbol) {
                 return symbol.next = nextSymbol, symbol.pathOk = !0, flowChart.handle(nextSymbol);
             }, symbol;
         }, FlowChart.prototype.startWith = function(symbol) {
             return this.start = symbol, this.handle(symbol);
         }, FlowChart.prototype.render = function() {
-            var symbol, line, maxWidth = 0, maxHeight = 0, i = 0, len = 0, maxX = 0, maxY = 0;
-            for (i = 0, len = this.symbols.length; len > i; i++) symbol = this.symbols[i], symbol.width > maxWidth && (maxWidth = symbol.width), 
+            var symbol, line, maxWidth = 0, maxHeight = 0, i = 0, len = 0, maxX = 0, maxY = 0, minX = 0, minY = 0;
+            for (i = 0, len = this.symbols.length; i < len; i++) symbol = this.symbols[i], symbol.width > maxWidth && (maxWidth = symbol.width), 
             symbol.height > maxHeight && (maxHeight = symbol.height);
-            for (i = 0, len = this.symbols.length; len > i; i++) symbol = this.symbols[i], symbol.shiftX(this.options.x + (maxWidth - symbol.width) / 2 + this.options["line-width"]), 
+            for (i = 0, len = this.symbols.length; i < len; i++) symbol = this.symbols[i], symbol.shiftX(this.options.x + (maxWidth - symbol.width) / 2 + this.options["line-width"]), 
             symbol.shiftY(this.options.y + (maxHeight - symbol.height) / 2 + this.options["line-width"]);
             // for (i = 0, len = this.symbols.length; i < len; i++) {
             //   symbol = this.symbols[i];
             //   symbol.render();
             // }
-            for (this.start.render(), i = 0, len = this.symbols.length; len > i; i++) symbol = this.symbols[i], 
+            for (this.start.render(), i = 0, len = this.symbols.length; i < len; i++) symbol = this.symbols[i], 
             symbol.renderLines();
-            for (maxX = this.maxXFromLine, i = 0, len = this.symbols.length; len > i; i++) {
+            maxX = this.maxXFromLine;
+            var x, y;
+            for (i = 0, len = this.symbols.length; i < len; i++) {
                 symbol = this.symbols[i];
-                var x = symbol.getX() + symbol.width, y = symbol.getY() + symbol.height;
+                var leftX = symbol.getX();
+                x = leftX + symbol.width, y = symbol.getY() + symbol.height, leftX < minX && (minX = leftX), 
                 x > maxX && (maxX = x), y > maxY && (maxY = y);
             }
-            for (i = 0, len = this.lines.length; len > i; i++) {
-                line = this.lines[i].getBBox();
-                var x = line.x2, y = line.y2;
-                x > maxX && (maxX = x), y > maxY && (maxY = y);
+            for (i = 0, len = this.lines.length; i < len; i++) {
+                line = this.lines[i].getBBox(), x = line.x, y = line.y;
+                var x2 = line.x2, y2 = line.y2;
+                x < minX && (minX = x), y < minY && (minY = y), x2 > maxX && (maxX = x2), y2 > maxY && (maxY = y2);
             }
             var scale = this.options.scale, lineWidth = this.options["line-width"];
-            this.paper.setSize(maxX * scale + lineWidth * scale, maxY * scale + lineWidth * scale), 
-            this.paper.setViewBox(0, 0, maxX + lineWidth, maxY + lineWidth, !0);
+            this.minXFromSymbols < minX && (minX = this.minXFromSymbols), minX < 0 && (minX -= lineWidth), 
+            minY < 0 && (minY -= lineWidth);
+            var width = maxX + lineWidth - minX, height = maxY + lineWidth - minY;
+            this.paper.setSize(width * scale, height * scale), this.paper.setViewBox(minX, minY, width, height, !0);
         }, FlowChart.prototype.clean = function() {
             if (this.paper) {
                 var paperDom = this.paper.canvas;
-                paperDom.parentNode.removeChild(paperDom);
+                paperDom.parentNode && paperDom.parentNode.removeChild(paperDom);
             }
         }, module.exports = FlowChart;
-    }, /* 7 */
+    }, /* 8 */
     /*!***********************************!*\
   !*** ./src/flowchart.defaults.js ***!
   \***********************************/
@@ -795,7 +1068,7 @@
             "yes-text": "yes",
             "no-text": "no",
             "arrow-end": "block",
-            "class": "flowchart",
+            class: "flowchart",
             scale: 1,
             symbols: {
                 start: {},
@@ -803,10 +1076,11 @@
                 condition: {},
                 inputoutput: {},
                 operation: {},
-                subroutine: {}
+                subroutine: {},
+                parallel: {}
             }
         };
-    }, /* 8 */
+    }, /* 9 */
     /*!*******************************!*\
   !*** ./src/flowchart.shim.js ***!
   \*******************************/
@@ -819,9 +1093,10 @@
             var t = Object(this), len = t.length >>> 0;
             if (0 === len) return -1;
             var n = 0;
-            if (arguments.length > 0 && (n = Number(arguments[1]), n != n ? n = 0 : 0 !== n && n != 1 / 0 && n != -(1 / 0) && (n = (n > 0 || -1) * Math.floor(Math.abs(n)))), 
+            if (arguments.length > 0 && (n = Number(arguments[1]), n != n ? // shortcut for verifying if it's NaN
+            n = 0 : 0 !== n && n != 1 / 0 && n != -(1 / 0) && (n = (n > 0 || -1) * Math.floor(Math.abs(n)))), 
             n >= len) return -1;
-            for (var k = n >= 0 ? n : Math.max(len - Math.abs(n), 0); len > k; k++) if (k in t && t[k] === searchElement) return k;
+            for (var k = n >= 0 ? n : Math.max(len - Math.abs(n), 0); k < len; k++) if (k in t && t[k] === searchElement) return k;
             return -1;
         }), // add lastIndexOf to non ECMA-262 standard compliant browsers
         Array.prototype.lastIndexOf || (Array.prototype.lastIndexOf = function(searchElement) {
@@ -836,7 +1111,7 @@
         }), String.prototype.trim || (String.prototype.trim = function() {
             return this.replace(/^\s+|\s+$/g, "");
         });
-    }, /* 9 */
+    }, /* 10 */
     /*!*************************************!*\
   !*** ./src/flowchart.symbol.end.js ***!
   \*************************************/
@@ -848,7 +1123,7 @@
         }
         var Symbol = __webpack_require__(/*! ./flowchart.symbol */ 2), inherits = __webpack_require__(/*! ./flowchart.helpers */ 1).inherits;
         inherits(End, Symbol), module.exports = End;
-    }, /* 10 */
+    }, /* 11 */
     /*!*********************************************!*\
   !*** ./src/flowchart.symbol.inputoutput.js ***!
   \*********************************************/
@@ -902,7 +1177,7 @@
                 y: y
             };
         }, module.exports = InputOutput;
-    }, /* 11 */
+    }, /* 12 */
     /*!*******************************************!*\
   !*** ./src/flowchart.symbol.operation.js ***!
   \*******************************************/
@@ -914,7 +1189,7 @@
         }
         var Symbol = __webpack_require__(/*! ./flowchart.symbol */ 2), inherits = __webpack_require__(/*! ./flowchart.helpers */ 1).inherits;
         inherits(Operation, Symbol), module.exports = Operation;
-    }, /* 12 */
+    }, /* 13 */
     /*!***************************************!*\
   !*** ./src/flowchart.symbol.start.js ***!
   \***************************************/
@@ -926,7 +1201,7 @@
         }
         var Symbol = __webpack_require__(/*! ./flowchart.symbol */ 2), inherits = __webpack_require__(/*! ./flowchart.helpers */ 1).inherits;
         inherits(Start, Symbol), module.exports = Start;
-    }, /* 13 */
+    }, /* 14 */
     /*!********************************************!*\
   !*** ./src/flowchart.symbol.subroutine.js ***!
   \********************************************/
@@ -960,7 +1235,7 @@
         }
         var Symbol = __webpack_require__(/*! ./flowchart.symbol */ 2), inherits = __webpack_require__(/*! ./flowchart.helpers */ 1).inherits;
         inherits(Subroutine, Symbol), module.exports = Subroutine;
-    }, /* 14 */
+    }, /* 15 */
     /*!******************************!*\
   !*** ./src/jquery-plugin.js ***!
   \******************************/
@@ -969,21 +1244,57 @@
         if ("undefined" != typeof jQuery) {
             var parse = __webpack_require__(/*! ./flowchart.parse */ 4);
             !function($) {
-                $.fn.flowChart = function(options) {
-                    return this.each(function() {
-                        var $this = $(this), chart = parse($this.text());
-                        $this.html(""), chart.drawSVG(this, options);
-                    });
+                function paramFit(needle, haystack) {
+                    return needle == haystack || Array.isArray(haystack) && (haystack.includes(needle) || haystack.includes(Number(needle)));
+                }
+                var methods = {
+                    init: function(options) {
+                        return this.each(function() {
+                            var $this = $(this);
+                            this.chart = parse($this.text()), $this.html(""), this.chart.drawSVG(this, options);
+                        });
+                    },
+                    setFlowStateByParam: function(param, paramValue, newFlowState) {
+                        return this.each(function() {
+                            var chart = this.chart, nextSymbolKeys = [ "next", "yes", "no", "path1", "path2", "path3" ];
+                            for (var property in chart.symbols) if (chart.symbols.hasOwnProperty(property)) {
+                                var symbol = chart.symbols[property], val = symbol.params[param];
+                                if (paramFit(val, paramValue)) {
+                                    symbol.flowstate = newFlowState;
+                                    for (var nski = 0; nski < nextSymbolKeys.length; nski++) {
+                                        var nextSymbolKey = nextSymbolKeys[nski];
+                                        symbol[nextSymbolKey] && symbol[nextSymbolKey].params && symbol[nextSymbolKey].params[param] && paramFit(symbol[nextSymbolKey].params[param], paramValue) && (symbol.lineStyle[symbol[nextSymbolKey].key] = {
+                                            stroke: chart.options().flowstate[newFlowState].fill
+                                        });
+                                    }
+                                }
+                            }
+                            chart.clean(), chart.drawSVG(this);
+                        });
+                    },
+                    clearFlowState: function() {
+                        return this.each(function() {
+                            var chart = this.chart;
+                            for (var property in chart.symbols) if (chart.symbols.hasOwnProperty(property)) {
+                                var node = chart.symbols[property];
+                                node.flowstate = "";
+                            }
+                            chart.clean(), chart.drawSVG(this);
+                        });
+                    }
+                };
+                $.fn.flowChart = function(methodOrOptions) {
+                    return methods[methodOrOptions] ? methods[methodOrOptions].apply(this, Array.prototype.slice.call(arguments, 1)) : "object" != typeof methodOrOptions && methodOrOptions ? void $.error("Method " + methodOrOptions + " does not exist on jQuery.flowChart") : methods.init.apply(this, arguments);
                 };
             }(jQuery);
         }
-    }, /* 15 */
+    }, /* 16 */
     /*!**************************!*\
   !*** external "Raphael" ***!
   \**************************/
     /***/
     function(module, exports) {
-        module.exports = __WEBPACK_EXTERNAL_MODULE_15__;
+        module.exports = __WEBPACK_EXTERNAL_MODULE_16__;
     } ]);
 });
 //# sourceMappingURL=flowchart.js.map

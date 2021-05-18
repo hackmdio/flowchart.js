@@ -6,30 +6,16 @@ var drawPath = drawAPI.drawPath;
 function Condition(chart, options) {
   options = options || {};
   Symbol.call(this, chart, options);
+  this.yes_annotation = options.yes_annotation;
+  this.no_annotation = options.no_annotation;
   this.textMargin = this.getAttr('text-margin');
-  this.yes_direction = 'bottom';
-  this.no_direction = 'right';
-  if (options.yes && options.direction_yes && options.no && !options.direction_no) {
-    if (options.direction_yes === 'right') {
-      this.no_direction = 'bottom';
-      this.yes_direction = 'right';
-    } else {
-      this.no_direction = 'right';
-      this.yes_direction = 'bottom';
-    }
-  } else if (options.yes && !options.direction_yes && options.no && options.direction_no) {
-    if (options.direction_no === 'right') {
-      this.yes_direction = 'bottom';
-      this.no_direction = 'right';
-    } else {
-      this.yes_direction = 'right';
-      this.no_direction = 'bottom';
-    }
-  } else {
-    this.yes_direction = 'bottom';
-    this.no_direction = 'right';
+  this.yes_direction = options.direction_yes;
+  this.no_direction = options.direction_no;
+  if (!this.no_direction && this.yes_direction === 'right') {
+    this.no_direction = 'bottom';
+  } else if (!this.yes_direction && this.no_direction === 'bottom') {
+    this.yes_direction = 'right'
   }
-
   this.yes_direction = this.yes_direction || 'bottom';
   this.no_direction = this.no_direction || 'right';
 
@@ -76,6 +62,7 @@ function Condition(chart, options) {
 
   this.group.push(symbol);
   symbol.insertBefore(this.text);
+  this.symbol = symbol
 
   this.initialize();
 }
@@ -120,14 +107,17 @@ Condition.prototype.render = function() {
         for (var i = 0, len = self.chart.symbols.length; i < len; i++) {
           symb = self.chart.symbols[i];
 
-          var diff = Math.abs(symb.getCenter().x - self.right_symbol.getCenter().x);
-          if (symb.getCenter().y > self.right_symbol.getCenter().y && diff <= self.right_symbol.width/2) {
-            hasSymbolUnder = true;
-            break;
+          if (!self.params['align-next'] || self.params['align-next'] !== 'no') { 
+            var diff = Math.abs(symb.getCenter().x - self.right_symbol.getCenter().x);
+            if (symb.getCenter().y > self.right_symbol.getCenter().y && diff <= self.right_symbol.width/2) {
+              hasSymbolUnder = true;
+              break;
+            }
           }
         }
 
         if (hasSymbolUnder) {
+          if (self.right_symbol.symbolType === 'end') return;
           self.right_symbol.setX(symb.getX() + symb.width + lineLength);
           shift();
         }
@@ -138,15 +128,50 @@ Condition.prototype.render = function() {
       this.right_symbol.render();
     }
   }
+  
+  if (this.left_symbol) {
+    var leftPoint = this.getLeft();
+  
+    if (!this.left_symbol.isPositioned) {
+      this.left_symbol.setY(leftPoint.y - this.left_symbol.height / 2);
+      this.left_symbol.shiftX(-(this.group.getBBox().x + this.width + lineLength));
+      var self = this;
+      (function shift() {
+        var hasSymbolUnder = false;
+        var symb;
+        for (var i = 0, len = self.chart.symbols.length; i < len; i++) {
+          symb = self.chart.symbols[i];
+    
+          if (!self.params['align-next'] || self.params['align-next'] !== 'no') {
+            var diff = Math.abs(symb.getCenter().x - self.left_symbol.getCenter().x);
+            if (symb.getCenter().y > self.left_symbol.getCenter().y && diff <= self.left_symbol.width / 2) {
+              hasSymbolUnder = true;
+              break;
+            }
+          }
+        }
+    
+        if (hasSymbolUnder) {
+          if (self.left_symbol.symbolType === 'end') return;
+          self.left_symbol.setX(symb.getX() + symb.width + lineLength);
+          shift();
+        }
+      })();
+  
+      this.left_symbol.isPositioned = true;
+  
+      this.left_symbol.render();
+    }
+  }
 };
 
 Condition.prototype.renderLines = function() {
   if (this.yes_symbol) {
-    this.drawLineTo(this.yes_symbol, this.getAttr('yes-text'), this.yes_direction);
+    this.drawLineTo(this.yes_symbol, this.yes_annotation ? this.yes_annotation : this.getAttr('yes-text'), this.yes_direction);
   }
 
   if (this.no_symbol) {
-    this.drawLineTo(this.no_symbol, this.getAttr('no-text'), this.no_direction);
+    this.drawLineTo(this.no_symbol, this.no_annotation ? this.no_annotation : this.getAttr('no-text'), this.no_direction);
   }
 };
 

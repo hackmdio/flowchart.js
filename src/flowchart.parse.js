@@ -5,6 +5,7 @@ var Operation = require('./flowchart.symbol.operation');
 var InputOutput = require('./flowchart.symbol.inputoutput');
 var Subroutine = require('./flowchart.symbol.subroutine');
 var Condition = require('./flowchart.symbol.condition');
+var Parallel = require('./flowchart.symbol.parallel');
 
 function parse(input) {
   input = input || '';
@@ -48,6 +49,9 @@ function parse(input) {
           case 'condition':
             dispSymbols[s.key] = new Condition(diagram, s);
             break;
+          case 'parallel':
+            dispSymbols[s.key] = new Parallel(diagram, s);
+            break;
           default:
             return new Error('Wrong symbol type!');
         }
@@ -68,6 +72,16 @@ function parse(input) {
             if (prev.no === s) {
               prevDisp.no(dispSymb);
             }
+          } else if (prevDisp instanceof(Parallel)) {
+            if (prev.path1 === s) {
+              prevDisp.path1(dispSymb);
+            }
+            if (prev.path2 === s) {
+              prevDisp.path2(dispSymb);
+            }
+            if (prev.path3 === s) {
+              prevDisp.path3(dispSymb);
+            }
           } else {
             prevDisp.then(dispSymb);
           }
@@ -84,6 +98,16 @@ function parse(input) {
           if (s.no) {
             constructChart(s.no, dispSymb, s);
           }
+        } else if (dispSymb instanceof(Parallel)) {
+          if (s.path1) {
+            constructChart(s.path1, dispSymb, s);
+          }
+          if (s.path2) {
+            constructChart(s.path2, dispSymb, s);
+          }
+          if (s.path3) {
+            constructChart(s.path3, dispSymb, s);
+          }
         } else if (s.next) {
           constructChart(s.next, dispSymb, s);
         }
@@ -95,6 +119,9 @@ function parse(input) {
     },
     clean: function() {
       this.diagram.clean();
+    },
+    options: function() {
+      return this.diagram.options;
     }
   };
 
@@ -108,20 +135,38 @@ function parse(input) {
     }
   }
 
-  if(prevBreak < input.length) {
+  if (prevBreak < input.length) {
     lines.push(input.substr(prevBreak));
   }
 
   for (var l = 1, len = lines.length; l < len;) {
     var currentLine = lines[l];
 
-    if (currentLine.indexOf('->') < 0 && currentLine.indexOf('=>') < 0) {
+    if (currentLine.indexOf('->') < 0 && currentLine.indexOf('=>') < 0 && currentLine.indexOf('@>') < 0) {
       lines[l - 1] += '\n' + currentLine;
       lines.splice(l, 1);
       len--;
     } else {
       l++;
     }
+  }
+
+  function getStyle(s){
+    var startIndex = s.indexOf('(') + 1;
+    var endIndex = s.indexOf(')');
+    if (startIndex >= 0 && endIndex >= 0) {
+      return s.substring(startIndex,endIndex);
+    }
+    return '{}';
+  }
+
+  function getSymbValue(s){
+    var startIndex = s.indexOf('(') + 1;
+    var endIndex = s.indexOf(')');
+    if (startIndex >= 0 && endIndex >= 0) {
+      return s.substring(startIndex,endIndex);
+    }
+    return '';
   }
 
   function getSymbol(s) {
@@ -147,21 +192,45 @@ function parse(input) {
     }
     return next;
   }
+  
+  function getAnnotation(s) {
+	var startIndex = s.indexOf("(") + 1, endIndex = s.indexOf(")");
+	var tmp = s.substring(startIndex, endIndex);
+	if(tmp.indexOf(",") > 0) { tmp = tmp.substring(0, tmp.indexOf(",")); }
+	var tmp_split = tmp.split("@");
+	if(tmp_split.length > 1)
+		return startIndex >= 0 && endIndex >= 0 ? tmp_split[1] : "";
+  }
 
   while (lines.length > 0) {
-    var line = lines.splice(0, 1)[0];
+    var line = lines.splice(0, 1)[0].trim();
 
     if (line.indexOf('=>') >= 0) {
       // definition
       var parts = line.split('=>');
       var symbol = {
-        key: parts[0],
+        key: parts[0].replace(/\(.*\)/, ''),
         symbolType: parts[1],
         text: null,
         link: null,
         target: null,
-        flowstate: null
+        flowstate: null,
+        function: null,
+        lineStyle: {},
+        params: {}
       };
+
+      //parse parameters
+      var params = parts[0].match(/\((.*)\)/);
+      if (params && params.length > 1){
+        var entries = params[1].split(',');
+        for(var i = 0; i < entries.length; i++) {
+          var entry = entries[i].split('=');
+          if (entry.length == 2) {
+            symbol.params[entry[0]] = entry[1];
+          }
+        }
+      }
 
       var sub;
 
@@ -171,7 +240,15 @@ function parse(input) {
         symbol.text = sub.join(': ');
       }
 
-      if (symbol.text && symbol.text.indexOf(':>') >= 0) {
+      if (symbol.text && symbol.text.indexOf(':$') >= 0) {
+        sub = symbol.text.split(':$');
+        symbol.text = sub.shift();
+        symbol.function = sub.join(':$');
+      } else if (symbol.symbolType.indexOf(':$') >= 0) {
+        sub = symbol.symbolType.split(':$');
+        symbol.symbolType = sub.shift();
+        symbol.function = sub.join(':$');
+      } else if (symbol.text && symbol.text.indexOf(':>') >= 0) {
         sub = symbol.text.split(':>');
         symbol.text = sub.shift();
         symbol.link = sub.join(':>');
@@ -209,13 +286,24 @@ function parse(input) {
       chart.symbols[symbol.key] = symbol;
 
     } else if (line.indexOf('->') >= 0) {
+      var ann = getAnnotation(line);
+      if (ann) {
+        line = line.replace('@' + ann, ''); 
+      }
       // flow
       var flowSymbols = line.split('->');
-      for (var i = 0, lenS = flowSymbols.length; i < lenS; i++) {
-        var flowSymb = flowSymbols[i];
+      for (var iS = 0, lenS = flowSymbols.length; iS < lenS; iS++) {
+        var flowSymb = flowSymbols[iS];
+        var symbVal = getSymbValue(flowSymb);
 
-        var realSymb = getSymbol(flowSymb);
+        if (symbVal === 'true' || symbVal === 'false') {
+          // map true or false to yes or no respectively
+          flowSymb = flowSymb.replace('true', 'yes');
+          flowSymb = flowSymb.replace('false', 'no');
+        }
+        
         var next = getNextPath(flowSymb);
+        var realSymb = getSymbol(flowSymb);
 
         var direction = null;
         if (next.indexOf(',') >= 0) {
@@ -224,15 +312,35 @@ function parse(input) {
           direction = condOpt[1].trim();
         }
 
+        if (ann) {
+          if (next == "yes" || next == "true")
+            realSymb.yes_annotation = ann;
+          else
+            realSymb.no_annotation = ann;
+          ann = null;
+        }
+
         if (!chart.start) {
           chart.start = realSymb;
         }
 
-        if (i + 1 < lenS) {
-          var nextSymb = flowSymbols[i + 1];
+        if (iS + 1 < lenS) {
+          var nextSymb = flowSymbols[iS + 1];
           realSymb[next] = getSymbol(nextSymb);
           realSymb['direction_' + next] = direction;
           direction = null;
+        }
+      }
+    } else if (line.indexOf('@>') >= 0) {
+
+      // line style
+      var lineStyleSymbols = line.split('@>');
+      for (var iSS = 0, lenSS = lineStyleSymbols.length; iSS < lenSS; iSS++) {
+        if ((iSS + 1) !== lenSS) {
+          var curSymb = getSymbol(lineStyleSymbols[iSS]);
+          var nextSymbol = getSymbol(lineStyleSymbols[iSS+1]);
+
+          curSymb['lineStyle'][nextSymbol.key] = JSON.parse(getStyle(lineStyleSymbols[iSS + 1]));
         }
       }
     }

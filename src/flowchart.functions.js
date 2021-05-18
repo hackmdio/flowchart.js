@@ -61,6 +61,7 @@ function drawLine(chart, from, to, text) {
     var centerText = false;
 
     var textPath = chart.paper.text(0, 0, text);
+    var textAnchor = 'start';
 
     var isHorizontal = false;
     var firstTo = to[0];
@@ -97,16 +98,24 @@ function drawLine(chart, from, to, text) {
       y = from.y;
 
       if (isHorizontal) {
-        x += chart.options['text-margin']/2;
+        if (from.x > firstTo.x) {
+          x -= chart.options['text-margin']/2;
+          textAnchor = 'end';
+        } else {
+          x += chart.options['text-margin']/2;
+        }
         y -= chart.options['text-margin'];
       } else {
         x += chart.options['text-margin']/2;
         y += chart.options['text-margin'];
+        if (from.y > firstTo.y) {
+          y -= chart.options['text-margin']*2;
+        }
       }
     }
 
     textPath.attr({
-      'text-anchor': 'start',
+      'text-anchor': textAnchor,
       'font-size': chart.options['font-size'],
       'fill': chart.options['font-color'],
       x: x,

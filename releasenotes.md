@@ -1,6 +1,102 @@
+### v1.15.0
+
+- Introduce types [#214](https://github.com/adrai/flowchart.js/pull/214) thanks to [Mister-Hope](https://github.com/Mister-Hope)
+
+### v1.14.3
+
+- Removed types introduced in [#212](https://github.com/adrai/flowchart.js/pull/212) again
+
+### v1.14.2
+
+- Basic types [#212](https://github.com/adrai/flowchart.js/pull/212) thanks to [DerMolly](https://github.com/DerMolly)
+
+### v1.14.1
+
+- Corrected condition behavior and fixed layout [#211](https://github.com/adrai/flowchart.js/pull/211) thanks to [AlexanderMisel](https://github.com/AlexanderMisel)
+
+### v1.14.0
+
+- Custom annotations [#209](https://github.com/adrai/flowchart.js/pull/209) thanks to [serpent-charmer](https://github.com/serpent-charmer)
+
+
+### v1.13.0
+
+- Provide low cost means of lines not colliding until they converge [#191](https://github.com/adrai/flowchart.js/pull/191) thanks to [robertleeplummerjr](https://github.com/robertleeplummerjr)
+- update raphael dependency
+
+
+### v1.12.3
+
+- Cleaning error fix, Linestyle parsing cycle fix, Dynamic flowState update [#188](https://github.com/adrai/flowchart.js/pull/188) thanks to [murich](https://github.com/murich)
+
+
+### v1.12.2
+
+- shrink npm package
+
+
+### v1.12.1
+
+- Fix params bug [#173](https://github.com/adrai/flowchart.js/pull/173) thanks to [leo108](https://github.com/leo108)
+
+
+### v1.12.0
+
+- onclick function binding to chart nodes [#172](https://github.com/adrai/flowchart.js/pull/172) thanks to [ndrqu](https://github.com/ndrqu)
+
+
+### v1.11.3
+
+- try to optimize horizontal rendering for end symbols [#155](https://github.com/adrai/flowchart.js/issues/155)
+
+### v1.11.2
+
+- try to optimize left handling [#152](https://github.com/adrai/flowchart.js/issues/152)
+
+### v1.11.1
+
+- fix direction issue for condition [#151](https://github.com/adrai/flowchart.js/issues/151)
+
+### v1.11.0
+
+- Add parallel component [#145](https://github.com/adrai/flowchart.js/pull/145) thanks to [sudhakar-sekar](https://github.com/sudhakar-sekar)
+
+### v1.9.0
+
+- Add arrow-text attribute to symbols [#141](https://github.com/adrai/flowchart.js/pull/141) thanks to [josephtocci](https://github.com/josephtocci)
+
+### v1.8.0
+
+- Allow Conditional to support 'true' or 'false' along with 'yes' and 'no' [#128](https://github.com/adrai/flowchart.js/pull/128) thanks to [bhedge](https://github.com/bhedge)
+
+### v1.7.0
+
+- add parameter to disable vertical alignment of condition symbol [#115](https://github.com/adrai/flowchart.js/pull/115) thanks to [bertrandmartel](https://github.com/bertrandmartel)
+- add line style flow support [#113](https://github.com/adrai/flowchart.js/pull/115) thanks to [bertrandmartel](https://github.com/bertrandmartel)
+
+### v1.6.6
+
+- Fix disruptive space char when parsing [#105](https://github.com/adrai/flowchart.js/pull/105)
+
+### v1.6.5
+
+- set proper engine version in package.json
+
+### v1.6.4
+
+- raphael now is an npm dependency (not the git reference anymore)
+
+### v1.6.3
+
+- Allow going to same symbol thanks to [nonylene](https://github.com/nonylene) [#83](https://github.com/adrai/flowchart.js/pull/83)
+
+### v1.6.2
+
+- Fixed not calculate viewBox and size properly thanks to [jackycute](https://github.com/jackycute) [#74](https://github.com/adrai/flowchart.js/issues/#74)
+
 ### v1.6.1
 
-- Fixed lines are not included in the calculation of viewBox and size thanks to [jackycute](https://github.com/jackycute) [##72](https://github.com/adrai/flowchart.js/issues/#72) [##67](https://github.com/adrai/flowchart.js/issues/#67)
+- Fixed lines are not included in the calculation of viewBox and size thanks to [jackycute](https://github.com/jackycute) [#72](https://github.com/adrai/flowchart.js/issues/#72) [#67](https://github.com/adrai/flowchart.js/issues/#67)
 
 ### v1.6.0
 
